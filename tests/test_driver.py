@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import unittest
+from pathlib import Path
 
 from gdey0154f51.constants import BUFFER_SIZE, Color, PinConfig
 from gdey0154f51.driver import GDEY0154F51, GDEY0154F51Controller
@@ -87,6 +89,22 @@ class DriverTests(unittest.TestCase):
 
         commands = [item.value for item in self.controller.trace if item.kind == "cmd"]
         self.assertIn(0x04, commands)
+
+    def test_official_arduino_demo_header_can_be_displayed_with_current_driver(self) -> None:
+        self.gpio.set_input_value(self.pins.busy, 1)
+        demo_header = (
+            Path(__file__).resolve().parent.parent
+            / "GDEM0154F51H_Arduino"
+            / "Ap_29demo.h"
+        )
+        text = demo_header.read_text(encoding="utf-8", errors="ignore")
+        hex_bytes = re.findall(r"0X([0-9A-Fa-f]{2})", text)
+        demo_buffer = bytes(int(v, 16) for v in hex_bytes[:BUFFER_SIZE])
+
+        self.assertEqual(len(demo_buffer), BUFFER_SIZE)
+        self.device.display_demo_buffer(demo_buffer, auto_sleep=False)
+        self.assertEqual(len(self.controller.last_ram), BUFFER_SIZE)
+        self.assertNotEqual(self.controller.last_ram, demo_buffer)
 
 
 if __name__ == "__main__":
